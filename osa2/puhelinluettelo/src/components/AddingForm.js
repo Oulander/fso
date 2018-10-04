@@ -30,7 +30,19 @@ const AddingForm = (props) => {
         <div>
           <button type="submit">lisää</button>
         </div>
+        <Notification message={props.successMessageState}/>
       </form>
+    </div>
+  )
+}
+
+const Notification = ({ message }) => {
+  if (message === null) {
+    return null
+  }
+  return (
+    <div className="success">
+      {message}
     </div>
   )
 }

@@ -2,21 +2,25 @@ import React from 'react';
 import AddingForm from './components/AddingForm'
 import PeopleList from './components/PeopleList'
 import FilterField from './components/FilterField'
+import NumberService from './services/Numbers'
 
 class App extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
-      persons: [
-        { name: 'Arto Hellas', number: '040-123456' },
-        { name: 'Martti Tienari', number: '040-123456' },
-        { name: 'Arto Järvinen', number: '040-123456' },
-        { name: 'Lea Kutvonen', number: '040-123456' }
-      ],
+      persons: [],
       newName: '',
       newNumber: '',
-      filter: ''
+      filter: '',
+      successMessage: null
     }
+  }
+
+  componentDidMount() {
+    NumberService.getAll()
+      .then(response => {
+        this.setState({ persons: response })
+      })
   }
 
   addPerson = (event) => {
@@ -26,18 +30,79 @@ class App extends React.Component {
       number: this.state.newNumber
     }
 
-    const namesArray = this.state.persons.map(person => person.name)
-    const isNewName = namesArray.find((element) => element === newPerson.name) === undefined
+    const personDetailsFromArray = this.state.persons.find((person) => person.name === newPerson.name)
+    const isNewPerson = personDetailsFromArray === undefined
     const fieldNotMissing = (this.state.newName.length > 0) && (this.state.newNumber.length > 0)
 
-    if (isNewName && fieldNotMissing){
-      const personsUpdated = this.state.persons.concat(newPerson)
-      this.setState({
-        persons: personsUpdated,
-        newName: '',
-        newNumber: ''
-      })
+    if (fieldNotMissing){
+      if (isNewPerson){
+        NumberService
+          .create(newPerson)
+          .then(response => {
+          this.setState({
+            persons: this.state.persons.concat(response),
+            newName: '',
+            newNumber: ''
+          })
+        })
+        this.setSuccessMessage(newPerson.name +  " lisättiin luetteloon.")
+      }
+      else {
+        const id = personDetailsFromArray.id
+        const name = personDetailsFromArray.name
+        const newNumber = newPerson.number
+        this.updateNumber({id:id, name:name, newNumber:newNumber})
+
+
+      }
     }
+  }
+
+  updateNumber = (props) => {
+    const id = props.id
+    const name = props.name
+    const newNumber = props.newNumber
+    const newPerson = {name: name, number: newNumber}
+
+    NumberService
+      .update(id, newPerson)
+      .then(updatedNumber => {
+        const personsFiltered = this.state.persons.filter(person => person.id !== id)
+        const updatedPerson = {
+          name: name,
+          number: newNumber,
+          id: id
+        }
+        this.setState({
+          persons: personsFiltered.concat(updatedPerson),
+          newName: '',
+          newNumber: ''
+        })
+        this.setSuccessMessage("Henkilön " + name +  " numero päivitetty.")
+      })
+      .catch(error => {
+        NumberService.getAll()
+          .then(response => {
+            this.setState({ persons: response })
+          })
+        NumberService.create(newPerson)
+          .then(response => {
+          this.setState({
+            persons: this.state.persons.concat(response),
+            newName: '',
+            newNumber: ''
+          })
+        this.setSuccessMessage("Henkilön " + name +  " tiedot on poistettu jonkun muun toimesta ennen tekemääsi muutosta. Luotiin henkilö uudelleen puhelinluetteloon.")
+        })
+      })
+  }
+
+  setSuccessMessage = (message) => {
+    this.setState({successMessage: message})
+
+  setTimeout(() => {
+    this.setState({successMessage: null})
+  }, 5000)
   }
 
   nameInputListener = (event) => {
@@ -53,6 +118,18 @@ class App extends React.Component {
   filterListener = (event) => {
     event.preventDefault()
     this.setState({filter: event.target.value})
+  }
+
+  deletePerson = (person) => (event) => {
+    event.preventDefault()
+    if(window.confirm("Haluatko varmasti poistaa numeron?")){
+      NumberService.remove(person.id)
+      let persons = this.state.persons
+      const index = persons.indexOf(person)
+      persons.splice(index, 1)
+      this.setState({persons: persons})
+      this.setSuccessMessage(person.name + " poistettiin luettelosta")
+    }
   }
 
   render() {
@@ -71,11 +148,13 @@ class App extends React.Component {
           nameState = {this.state.newName}
           listenNumber = {this.numberInputListener}
           numberState = {this.state.newNumber}
+          successMessageState = {this.state.successMessage}
         />
         <PeopleList
           title = "Numerot"
           persons = {this.state.persons}
           filter = {this.state.filter}
+          handleDeleteClick = {this.deletePerson}
         />
       </div>
     )

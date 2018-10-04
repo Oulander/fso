@@ -18,9 +18,10 @@ const PeopleList = (props) => {
       <table><tbody>
         {peopleToShow.map(
           person =>
-          <tr key = {person.name}>
+          <tr key = {person.id}>
             <td>{person.name}</td>
             <td>{person.number}</td>
+            <td><button onClick={props.handleDeleteClick(person)}>Poista</button></td>
           </tr>)}
       </tbody></table>
     </div>
